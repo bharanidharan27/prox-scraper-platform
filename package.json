@@ -1,0 +1,34 @@
+{
+  "name": "prox-scraper-platform",
+  "version": "1.0.0",
+  "description": "Cost-aware, high-throughput scraper infrastructure for Prox — Track A Technical Assessment",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "ts-node src/index.ts",
+    "runner": "ts-node src/runner/cli.ts",
+    "test:runner": "ts-node src/runner/cli.ts --retailer=kroger --zip=90046 --query=milk",
+    "test:multi": "ts-node src/runner/cli.ts --retailer=walmart --zip=10001 --query=\"tide pods\" && ts-node src/runner/cli.ts --retailer=kroger --zip=90046 --query=chicken",
+    "demo": "ts-node src/demo.ts"
+  },
+  "dependencies": {
+    "p-limit": "^4.0.0",
+    "p-retry": "^5.1.2",
+    "chalk": "^4.1.2",
+    "sqlite3": "^5.1.6",
+    "better-sqlite3": "^9.4.3",
+    "yargs": "^17.7.2",
+    "dotenv": "^16.4.5",
+    "winston": "^3.13.0",
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.12.7",
+    "@types/better-sqlite3": "^7.6.10",
+    "@types/yargs": "^17.0.32",
+    "@types/uuid": "^9.0.8",
+    "typescript": "^5.4.5",
+    "ts-node": "^10.9.2"
+  }
+}
