@@ -17,7 +17,39 @@ import { rateLimiter } from '../controls/rateLimiter';
 import { spendGuardrail } from '../controls/spendGuardrail';
 import { logger } from '../utils/logger';
 
-const argv = yargs(hideBin(process.argv))
+// Handle --status before yargs demands retailer/zip/query
+const rawArgs = hideBin(process.argv);
+if (rawArgs.includes('--status')) {
+  // Lazy import to avoid DB init before needed
+  const { circuitBreaker: cb } = require('../controls/circuitBreaker');
+  const { rateLimiter: rl } = require('../controls/rateLimiter');
+  const { spendGuardrail: sg } = require('../controls/spendGuardrail');
+  const chalk2 = require('chalk');
+  console.log('');
+  console.log(chalk2.bold.cyan('System Status'));
+  console.log(chalk2.gray('─'.repeat(50)));
+  const cbStatus = cb.getStatus();
+  console.log(chalk2.bold('\nCircuit Breakers:'));
+  if (Object.keys(cbStatus).length === 0) console.log(chalk2.gray('  (no retailers activated yet)'));
+  else Object.entries(cbStatus).forEach(([r, s]: any) => {
+    const icon = s.state === 'CLOSED' ? chalk2.green('●') : s.state === 'OPEN' ? chalk2.red('●') : chalk2.yellow('●');
+    console.log(`  ${icon} ${r}: ${s.state} (failures: ${s.failures})`);
+  });
+  const rlStatus = rl.getStatus();
+  console.log(chalk2.bold('\nRate Limiters:'));
+  if (Object.keys(rlStatus).length === 0) console.log(chalk2.gray('  (no retailers activated yet)'));
+  else Object.entries(rlStatus).forEach(([r, s]: any) => {
+    console.log(`  ${chalk2.cyan(r)}: ${s.tokens} tokens remaining`);
+  });
+  const spend = sg.getHourlyStats();
+  console.log(chalk2.bold('\nSpend This Hour:'));
+  if (Object.keys(spend).length === 0) console.log(chalk2.gray('  (no requests yet)'));
+  else Object.entries(spend).forEach(([r, c]: any) => console.log(`  ${chalk2.cyan(r)}: ${c} proxy requests`));
+  console.log('');
+  process.exit(0);
+}
+
+const argv = yargs(rawArgs)
   .option('retailer', {
     alias: 'r',
     type: 'string',
@@ -39,11 +71,6 @@ const argv = yargs(hideBin(process.argv))
   .option('json', {
     type: 'boolean',
     description: 'Output raw JSON (for piping to other tools)',
-    default: false,
-  })
-  .option('status', {
-    type: 'boolean',
-    description: 'Show system status (circuit breakers, rate limits, spend)',
     default: false,
   })
   .help()

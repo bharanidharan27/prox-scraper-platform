@@ -39,6 +39,13 @@ export class SpendGuardrail {
         request_count = request_count + 1
     `).run(retailer, bucket);
 
+    // Purge rows older than 48 hours — keeps the table lean while retaining
+    // yesterday's data for cost comparison queries in monitoring dashboards
+    db.prepare(`
+      DELETE FROM spend_log
+      WHERE hour_bucket < strftime('%Y-%m-%d-%H', datetime('now', '-48 hours'))
+    `).run();
+
     const row = db
       .prepare('SELECT request_count FROM spend_log WHERE retailer = ? AND hour_bucket = ?')
       .get(retailer, bucket) as { request_count: number } | undefined;
