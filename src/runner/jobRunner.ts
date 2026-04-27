@@ -165,6 +165,15 @@ export async function runJob(request: ScrapeRequest): Promise<ScrapeResult> {
     jLogger.info(`Job started (concurrency slot acquired)`);
 
     // Exponential backoff retry: 1s → 2s → 4s, max 3 attempts
+    //
+    // Circuit breaker note: onFailure() is called only when ALL retries are
+    // exhausted (retriesLeft === 0), NOT on each individual attempt.
+    // Rationale: retries handle transient errors (flaky proxy, brief timeout).
+    // The circuit breaker tracks structural failure — a retailer that can't
+    // recover across multiple full job cycles, not within a single one.
+    // Counting per-attempt failures would open the circuit after far fewer
+    // real failures than intended (e.g., 2 jobs × 3 attempts = 6 CB ticks,
+    // tripping the threshold of 5 after just 2 real failures).
     const scrapeResult = await pRetry(
       async (attemptNumber) => {
         if (attemptNumber > 1) {
@@ -194,7 +203,11 @@ export async function runJob(request: ScrapeRequest): Promise<ScrapeResult> {
             `Attempt ${error.attemptNumber} failed: ${error.message}. ` +
             `${error.retriesLeft} retries left.`
           );
-          circuitBreaker.onFailure(request.retailer);
+          // Only record a circuit breaker failure when the job has fully
+          // exhausted all retries — not on intermediate transient failures
+          if (error.retriesLeft === 0) {
+            circuitBreaker.onFailure(request.retailer);
+          }
         },
       }
     );
